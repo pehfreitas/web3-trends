@@ -1,18 +1,43 @@
 // lib/redis.ts
 import { Redis } from "@upstash/redis";
 
-// A integração Upstash do Marketplace da Vercel injeta automaticamente
-// UPSTASH_REDIS_REST_URL e UPSTASH_REDIS_REST_TOKEN nas env vars do projeto.
-export const redis = Redis.fromEnv();
+function pick(...names: string[]): string | undefined {
+  for (const n of names) {
+    const v = process.env[n];
+    if (v) return v;
+  }
+  return undefined;
+}
 
-// Chaves usadas:
-//   trends:latest    -> snapshot da última rodada do cron
-//   trends:previous  -> snapshot da rodada anterior (para calcular movimento)
-//   trends:history   -> lista capada com contagens por tema (para gráfico futuro)
+const url = pick(
+  "UPSTASH_REDIS_REST_URL",
+  "KV_REST_API_URL",
+  "STORAGE_KV_REST_API_URL",
+  "STORAGE_UPSTASH_REDIS_REST_URL",
+  "STORAGE_REST_API_URL",
+  "STORAGE_URL"
+);
+
+const token = pick(
+  "UPSTASH_REDIS_REST_TOKEN",
+  "KV_REST_API_TOKEN",
+  "STORAGE_KV_REST_API_TOKEN",
+  "STORAGE_UPSTASH_REDIS_REST_TOKEN",
+  "STORAGE_REST_API_TOKEN",
+  "STORAGE_TOKEN"
+);
+
+if (!url || !token) {
+  console.error("Redis: credenciais não encontradas. Variáveis disponíveis:",
+    Object.keys(process.env).filter((k) => /REDIS|KV|STORAGE|UPSTASH/i.test(k)));
+}
+
+export const redis = new Redis({ url: url as string, token: token as string });
+
 export const KEYS = {
   latest: "trends:latest",
   previous: "trends:previous",
   history: "trends:history",
 } as const;
 
-export const HISTORY_LIMIT = 96; // ~4 dias se o cron rodar de hora em hora
+export const HISTORY_LIMIT = 96;
